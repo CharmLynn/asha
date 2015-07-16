@@ -1,10 +1,13 @@
 #! /bin/bash
+# author by fulei 
 
 if [ ! -n "$1" ] ;then
     dateday=`date -d "yesterday" +%Y%m%d`
     date2day=`date -d "2 days ago" +%Y%m%d`
 else
     dateday=$1
+    date2day=`date -d "-1 day $dateday" +%Y%m%d`
+ 
 fi
 
 # clean original log file 
@@ -24,14 +27,16 @@ mysql -uasha -pasha -Dbi -e "insert into day_result(dateday,uv,nv) values('$date
 for i in `seq 2 8`;do
     dateoffset=`date -d "$i days ago" +%%Y%m%d`
     j=$i-1
-    sort ${dateoffset}"_user.data" ${dateday}"_user.data" > ${dateoffset}"_"${j}"_remian.data"
+    sort ${dateoffset}"_user.data" ${dateday}"_user.data" |uniq -d> ${dateoffset}"_"${j}"_remian.data"
     #"nr_"${dateoffset}"_"${j}=`cat ${dateoffset}"_"${j}"_remian.data|wc -l`
     remianvalue=`cat ${dateoffset}"_"${j}"_remian.data|wc -l`
-    mysql -uasha -pasha -Dbi -e "update day_remain set $j'_remain'='$remianvalue' where dateday='$dateoffset'"
+  #  mysql -uasha -pasha -Dbi -e "update day_remain set $j'_remain'='$remianvalue' where dateday='$dateoffset'"
     if [i eq 2]
-        sort ${dateoffset}"_user.data" ${dateday}"_user.data" ${dateday}"_user.data" > ${datesleep}"_sleep.data"
+        mysql -uasha -pasha -Dbi -e "insert into day_remain(dateday, $j'_remain) values('$dateoffset', '$remianvalue')"
+        sort ${dateoffset}"_user.data" ${dateday}"_user.data" ${dateday}"_user.data" |uniq -u> ${datesleep}"_sleep.data"
     else:
-        sort ${datesleep}"_sleep.data" ${dateday}"_user.data" ${dateday}"_user.data" > ${datesleep}"_sleep.data"
+        mysql -uasha -pasha -Dbi -e "update day_remain set $j'_remain'='$remianvalue' where dateday='$dateoffset'"
+        sort ${datesleep}"_sleep.data" ${dateday}"_user.data" ${dateday}"_user.data" |uniq -u> ${datesleep}"_sleep.data"
     fi
     sleepvalue=`cat ${datesleep}"_sleep.data|wc -l`
     mysql -uasha -pasha -Dbi -e "insert into day_sleep(dateday,sleepvalue,checkdate) values('$dateday','$sleepvalue','$dateoffset')"
@@ -43,3 +48,4 @@ for i in `seq 9 31`;do
     sort ${datesleep}"_sleep.data" ${dateday}"_user.data" ${dateday}"_user.data" > ${datesleep}"_sleep.data"
 done
 
+sendmail -s '$dateday' -t 'fulei@youku.com'
